@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>안전한 작업 자세 - 상자 건네기 순서표</title>
+    <style>
+        body { 
+            font-family: 'Malgun Gothic', sans-serif; 
+            text-align: center; 
+            background-color: #f4f7f6; 
+            margin: 0; 
+            padding: 30px; 
+        }
+        h1 { color: #2c3e50; font-size: 2em; margin-bottom: 5px; }
+        .subtitle { color: #555; font-size: 1.2em; margin-bottom: 30px; }
+        .highlight { color: #e74c3c; font-weight: bold; }
+        
+        .control-panel { 
+            margin-bottom: 40px; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08); 
+            display: inline-block; 
+        }
+        input[type="text"] { 
+            width: 350px; 
+            padding: 12px; 
+            font-size: 16px; 
+            border: 1px solid #ccc; 
+            border-radius: 6px; 
+            margin-top: 10px;
+        }
+        button { 
+            padding: 12px 24px; 
+            font-size: 16px; 
+            font-weight: bold;
+            cursor: pointer; 
+            background-color: #3498db; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            margin-left: 10px; 
+            transition: background-color 0.3s; 
+        }
+        button:hover { background-color: #2980b9; }
+        .instruction { font-size: 14px; color: #7f8c8d; margin-top: 10px; }
+
+        #circle-container { 
+            position: relative; 
+            width: 450px; 
+            height: 450px; 
+            margin: 0 auto; 
+            border-radius: 50%; 
+            border: 3px dashed #bdc3c7; 
+            background-color: #fff; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+        }
+        .student-node { 
+            position: absolute; 
+            width: 90px; 
+            height: 90px; 
+            background-color: #2ecc71; 
+            color: white; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-weight: bold; 
+            font-size: 20px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15); 
+            transition: all 0.5s ease-in-out; 
+            z-index: 2; 
+        }
+        .student-order {
+            position: absolute;
+            top: -25px;
+            font-size: 14px;
+            color: #34495e;
+            font-weight: bold;
+            background: #ecf0f1;
+            padding: 2px 8px;
+            border-radius: 10px;
+            border: 1px solid #bdc3c7;
+        }
+        .center-text { 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            font-size: 24px; 
+            font-weight: bold; 
+            color: #2c3e50; 
+            text-align: center; 
+            z-index: 1; 
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>📦 직업 생활: 바른 자세로 움직이기</h1>
+    <div class="subtitle">핵심: <span class="highlight">안전한 작업 자세</span> 유지하며 상자 건네기</div>
+
+    <div class="control-panel">
+        <label for="studentNames" style="font-weight: bold; font-size: 1.1em;">참여 학생 (쉼표로 구분해서 적어)</label><br>
+        <input type="text" id="studentNames" value="상현, 진우, 민성, 다율, 지영, 성진">
+        <button onclick="shuffleAndDraw()">자리 섞기 / 다시 배치</button>
+        <p class="instruction">※ 참여 안 하는 애들은 위 빈칸에서 이름만 지우고 버튼 누르면 돼.</p>
+    </div>
+
+    <div id="circle-container">
+        <div class="center-text">안전한<br>작업 자세</div>
+        </div>
+
+    <script>
+        // 배열 순서 무작위로 섞어주는 함수
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // 화면에 동그랗게 애들 배치하는 함수
+        function shuffleAndDraw() {
+            const input = document.getElementById('studentNames').value;
+            // 쉼표 기준으로 자르고, 빈칸 지우고, 배열로 만듦
+            let names = input.split(',').map(name => name.trim()).filter(name => name !== '');
+            
+            if(names.length === 0) {
+                alert('야, 이름은 하나라도 남겨둬야지.');
+                return;
+            }
+
+            // 애들 순서 섞기
+            names = shuffleArray(names);
+
+            const container = document.getElementById('circle-container');
+            const centerText = container.querySelector('.center-text');
+            
+            // 기존에 있던 애들 노드 초기화 (가운데 글자는 살리고)
+            container.innerHTML = '';
+            if(centerText) container.appendChild(centerText);
+
+            const radius = 180; // 원 반지름 넓이
+            const centerX = 225; // 컨테이너 정중앙 X
+            const centerY = 225; // 컨테이너 정중앙 Y
+            const numNodes = names.length;
+
+            names.forEach((name, index) => {
+                // 12시 방향부터 시계방향으로 각도 계산
+                const angle = (index / numNodes) * (2 * Math.PI) - (Math.PI / 2);
+                
+                // 노드 크기가 90x90이니까 절반인 45씩 빼서 정중앙 맞춤
+                const x = centerX + radius * Math.cos(angle) - 45;
+                const y = centerY + radius * Math.sin(angle) - 45;
+
+                const node = document.createElement('div');
+                node.className = 'student-node';
+                node.style.left = `${x}px`;
+                node.style.top = `${y}px`;
+                
+                // 노드 안에 순서 번호표랑 이름 박기
+                node.innerHTML = `<div class="student-order">${index + 1}번</div>${name}`;
+                
+                container.appendChild(node);
+            });
+        }
+
+        // 페이지 열자마자 처음 한 번 돌려놓기
+        window.onload = shuffleAndDraw;
+    </script>
+</body>
+</html>
