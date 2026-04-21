@@ -11,6 +11,7 @@
             background-color: #f4f7f6; 
             margin: 0; 
             padding: 30px; 
+            overflow: hidden;
         }
         h1 { color: #2c3e50; font-size: 2em; margin-bottom: 5px; }
         .subtitle { color: #555; font-size: 1.2em; margin-bottom: 30px; }
@@ -23,6 +24,8 @@
             border-radius: 12px; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.08); 
             display: inline-block; 
+            position: relative;
+            z-index: 10;
         }
         input[type="text"] { 
             width: 350px; 
@@ -42,9 +45,10 @@
             border: none; 
             border-radius: 6px; 
             margin-left: 10px; 
-            transition: background-color 0.3s; 
+            transition: background-color 0.3s, transform 0.1s; 
         }
         button:hover { background-color: #2980b9; }
+        button:active { transform: scale(0.95); }
         .instruction { font-size: 14px; color: #7f8c8d; margin-top: 10px; }
 
         #circle-container { 
@@ -57,11 +61,21 @@
             background-color: #fff; 
             box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
         }
+
+        /* 섞일 때 컨테이너 자체가 빙글빙글 도는 애니메이션 */
+        @keyframes spin-crazy {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(1080deg) scale(0.85); }
+            100% { transform: rotate(2160deg) scale(1); }
+        }
+        .spinning {
+            animation: spin-crazy 1.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
         .student-node { 
             position: absolute; 
             width: 90px; 
             height: 90px; 
-            background-color: #2ecc71; 
             color: white; 
             border-radius: 50%; 
             display: flex; 
@@ -69,32 +83,34 @@
             justify-content: center; 
             font-weight: bold; 
             font-size: 20px; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15); 
-            transition: all 0.5s ease-in-out; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
+            transition: all 1.5s cubic-bezier(0.25, 0.1, 0.25, 1); 
             z-index: 2; 
         }
         .student-order {
             position: absolute;
-            top: -25px;
-            font-size: 14px;
-            color: #34495e;
+            top: -20px;
+            font-size: 15px;
+            color: #2c3e50;
             font-weight: bold;
-            background: #ecf0f1;
-            padding: 2px 8px;
-            border-radius: 10px;
-            border: 1px solid #bdc3c7;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 3px 10px;
+            border-radius: 12px;
+            border: 2px solid #bdc3c7;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .center-text { 
             position: absolute; 
             top: 50%; 
             left: 50%; 
             transform: translate(-50%, -50%); 
-            font-size: 24px; 
+            font-size: 26px; 
             font-weight: bold; 
             color: #2c3e50; 
             text-align: center; 
             z-index: 1; 
             line-height: 1.4;
+            transition: opacity 0.5s;
         }
     </style>
 </head>
@@ -104,18 +120,71 @@
     <div class="subtitle">핵심: <span class="highlight">안전한 작업 자세</span> 유지하며 상자 건네기</div>
 
     <div class="control-panel">
-        <label for="studentNames" style="font-weight: bold; font-size: 1.1em;">참여 학생 (쉼표로 구분해서 적어)</label><br>
+        <label for="studentNames" style="font-weight: bold; font-size: 1.1em;">참여 학생 (쉼표로 구분)</label><br>
         <input type="text" id="studentNames" value="상현, 진우, 민성, 다율, 지영, 성진">
-        <button onclick="shuffleAndDraw()">자리 섞기 / 다시 배치</button>
-        <p class="instruction">※ 참여 안 하는 애들은 위 빈칸에서 이름만 지우고 버튼 누르면 돼.</p>
+        <button onclick="triggerShuffle()">자리 섞기 🎲</button>
+        <p class="instruction">※ 첫 클릭 시 소리가 켜짐. 애들 추가/제외는 위 빈칸에서 수정해.</p>
     </div>
 
     <div id="circle-container">
-        <div class="center-text">안전한<br>작업 자세</div>
+        <div class="center-text" id="center-title">안전한<br>작업 자세</div>
         </div>
 
     <script>
-        // 배열 순서 무작위로 섞어주는 함수
+        // 소리를 위한 Web Audio API (외부 파일 필요 없음)
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // 도는 동안 나는 띠리링 소리
+        function playSpinSound() {
+            if (!audioCtx) return;
+            let time = audioCtx.currentTime;
+            for (let i = 0; i < 15; i++) {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400 + (i * 50), time + (i * 0.1));
+                gain.gain.setValueAtTime(0.1, time + (i * 0.1));
+                gain.gain.exponentialRampToValueAtTime(0.01, time + (i * 0.1) + 0.1);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(time + (i * 0.1));
+                osc.stop(time + (i * 0.1) + 0.1);
+            }
+        }
+
+        // 끝나고 짠! 하는 소리
+        function playTadaSound() {
+            if (!audioCtx) return;
+            const time = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(523.25, time); // C5
+            osc.frequency.setValueAtTime(659.25, time + 0.1); // E5
+            osc.frequency.setValueAtTime(783.99, time + 0.2); // G5
+            
+            gain.gain.setValueAtTime(0.3, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 1);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(time);
+            osc.stop(time + 1);
+        }
+
+        // 애들마다 다르게 줄 예쁜 색상표 (진한 파스텔톤)
+        const nodeColors = ['#FF6B6B', '#4ECDC4', '#556270', '#FDCB6E', '#6C5CE7', '#FF8ED4', '#00B894', '#0984E3', '#E17055', '#D63031'];
+
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -124,37 +193,57 @@
             return array;
         }
 
-        // 화면에 동그랗게 애들 배치하는 함수
-        function shuffleAndDraw() {
+        let isSpinning = false;
+
+        function triggerShuffle() {
+            if(isSpinning) return; // 돌고 있을 땐 버튼 안 먹히게 방어
+            initAudio(); // 오디오 활성화
+            
             const input = document.getElementById('studentNames').value;
-            // 쉼표 기준으로 자르고, 빈칸 지우고, 배열로 만듦
             let names = input.split(',').map(name => name.trim()).filter(name => name !== '');
             
             if(names.length === 0) {
-                alert('야, 이름은 하나라도 남겨둬야지.');
+                alert('야, 혼자서 상자 주고받을 거냐? 이름 넣어.');
                 return;
             }
 
-            // 애들 순서 섞기
-            names = shuffleArray(names);
-
+            isSpinning = true;
             const container = document.getElementById('circle-container');
-            const centerText = container.querySelector('.center-text');
+            const centerText = document.getElementById('center-title');
             
-            // 기존에 있던 애들 노드 초기화 (가운데 글자는 살리고)
-            container.innerHTML = '';
-            if(centerText) container.appendChild(centerText);
+            // 애니메이션 클래스 추가하고 중심 글자 잠깐 숨김
+            container.classList.add('spinning');
+            centerText.style.opacity = '0';
+            playSpinSound();
 
-            const radius = 180; // 원 반지름 넓이
+            // 1.5초(애니메이션 끝나는 시간) 뒤에 자리 재배치하고 '짠' 소리 재생
+            setTimeout(() => {
+                container.classList.remove('spinning');
+                centerText.style.opacity = '1';
+                drawNodes(names);
+                playTadaSound();
+                isSpinning = false;
+            }, 1500);
+        }
+
+        // 화면에 동그랗게 애들 배치하는 함수
+        function drawNodes(namesToDraw) {
+            // 그릴 때마다 순서 섞기
+            let names = shuffleArray([...namesToDraw]);
+            
+            const container = document.getElementById('circle-container');
+            const centerText = document.getElementById('center-title');
+            
+            container.innerHTML = '';
+            container.appendChild(centerText);
+
+            const radius = 170; // 원 반지름 넓이 (애니메이션 땜에 살짝 줄임)
             const centerX = 225; // 컨테이너 정중앙 X
             const centerY = 225; // 컨테이너 정중앙 Y
             const numNodes = names.length;
 
             names.forEach((name, index) => {
-                // 12시 방향부터 시계방향으로 각도 계산
                 const angle = (index / numNodes) * (2 * Math.PI) - (Math.PI / 2);
-                
-                // 노드 크기가 90x90이니까 절반인 45씩 빼서 정중앙 맞춤
                 const x = centerX + radius * Math.cos(angle) - 45;
                 const y = centerY + radius * Math.sin(angle) - 45;
 
@@ -162,16 +251,21 @@
                 node.className = 'student-node';
                 node.style.left = `${x}px`;
                 node.style.top = `${y}px`;
+                // 색상표에서 순서대로 색 뽑아오기 (애들 많으면 다시 처음 색부터)
+                node.style.backgroundColor = nodeColors[index % nodeColors.length];
                 
-                // 노드 안에 순서 번호표랑 이름 박기
                 node.innerHTML = `<div class="student-order">${index + 1}번</div>${name}`;
                 
                 container.appendChild(node);
             });
         }
 
-        // 페이지 열자마자 처음 한 번 돌려놓기
-        window.onload = shuffleAndDraw;
+        // 페이지 열자마자 처음엔 조용히 한 번 그려두기
+        window.onload = () => {
+            const input = document.getElementById('studentNames').value;
+            let names = input.split(',').map(name => name.trim()).filter(name => name !== '');
+            if(names.length > 0) drawNodes(names);
+        };
     </script>
 </body>
 </html>
